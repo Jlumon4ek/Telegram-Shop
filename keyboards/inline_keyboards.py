@@ -55,3 +55,20 @@ async def payment_button(uuid, link):
         builder.row(*kb[i:i+2])
 
     return builder.as_markup()
+
+
+async def users_managment_button():
+    builder = InlineKeyboardBuilder()
+    kb = [
+        types.InlineKeyboardButton(
+            text="Ban user",
+            callback_data="ban_user_button"),
+        types.InlineKeyboardButton(
+            text="Unban user",
+            callback_data=f"unban_user_button"),
+    ]
+
+    for i in range(0, len(kb), 2):
+        builder.row(*kb[i:i+2])
+
+    return builder.as_markup()

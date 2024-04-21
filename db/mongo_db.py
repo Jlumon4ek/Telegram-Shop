@@ -105,3 +105,53 @@ async def get_balance_history(mongo, user_id):
         amount = result.get('amount')
         output += f"{date} : {amount}$\n"
     return output
+
+
+async def get_admin_list(mongo):
+    users_collection = mongo["users"]
+    cursor = users_collection.find({"role": "admin"})
+    results = await cursor.to_list(length=None)
+    output = "List of admins:\n\n"
+    for result in results:
+        output += f"{result.get('fullname')} - {result.get('username')}\n"
+    return output
+
+
+async def get_users_list(mongo):
+    users_collection = mongo["users"]
+    cursor = users_collection.find()
+    results = await cursor.to_list(length=None)
+    output = "List of users:\n\n"
+    for result in results:
+        output += f"{result.get('_id')} - {result.get('fullname')} - {result.get('username')} - {result.get('banned')}\n"
+    return output
+
+
+async def change_users_status(mongo, user_id, status: bool):
+    try:
+        user_id = int(user_id)
+
+        user = await mongo.users.find_one({"_id": user_id})
+
+        if user.get("banned", False) == status:
+            if status:
+                return "The user is already banned."
+            else:
+                return "The user is already unbanned."
+
+        result = await mongo.users.update_one(
+            {"_id": user_id},
+            {"$set": {"banned": status}}
+        )
+
+        if result.matched_count == 0:
+            return f"No user found with ID {user_id}."
+
+        else:
+            if status:
+                return f"User {user_id} has been banned."
+            else:
+                return f"User {user_id} has been unbanned."
+
+    except Exception as e:
+        return f"An error occurred while updating the status of user {user_id}."

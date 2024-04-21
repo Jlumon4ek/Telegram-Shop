@@ -24,7 +24,7 @@ async def register_command_handlers(dp, bot, mongo):
     async def cancel(message: types.Message,  state: FSMContext):
         await message.reply("Operation canceled")
         user_id = message.from_user.id
-        keyboard = await main_buttons(user_id)
+        keyboard = await main_buttons(mongo, user_id)
         await state.clear()
         await message.reply("Hello! How can I help?", reply_markup=keyboard)
 

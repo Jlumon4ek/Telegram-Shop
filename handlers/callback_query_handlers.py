@@ -8,7 +8,10 @@ import random
 """"Importing my own modules"""
 from keyboards.inline_keyboards import cancel_payment_input_button
 from utils.states import TopUpState
-from utils.payments import invoice_cancel, check_payment_status
+from utils.states import BanUserState
+from utils.states import UnbanUserState
+from utils.payments import invoice_cancel
+from utils.payments import check_payment_status
 from db.mongo_db import get_balance_history
 
 
@@ -55,3 +58,15 @@ async def register_callback_query_handlers(dp, bot, mongo):
         balance_history = await get_balance_history(mongo, callback.from_user.id)
         await callback.answer()
         await callback.message.answer(balance_history)
+
+    @dp.callback_query(F.data == "ban_user_button")
+    async def ban_user(callback: types.CallbackQuery, state: FSMContext):
+        await callback.message.answer("Input user ID to ban")
+        await callback.answer()
+        await state.set_state(BanUserState.waiting_for_user_id,)
+
+    @dp.callback_query(F.data == "unban_user_button")
+    async def unban_user(callback: types.CallbackQuery, state: FSMContext):
+        await callback.message.answer("Input user ID to unban")
+        await callback.answer()
+        await state.set_state(UnbanUserState.waiting_for_user_id,)

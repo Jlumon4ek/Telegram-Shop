@@ -6,8 +6,19 @@ from aiogram.fsm.context import FSMContext
 
 """Importing my own modules"""
 from db.mongo_db import get_user_balance
-from keyboards.inline_keyboards import profile_keyboard, payment_button
+from db.mongo_db import get_user_role
+from db.mongo_db import get_admin_list
+from db.mongo_db import get_users_list
+from db.mongo_db import change_users_status
+from keyboards.inline_keyboards import profile_keyboard
+from keyboards.inline_keyboards import payment_button
+from keyboards.inline_keyboards import users_managment_button
+from keyboards.reply_keyboards import admin_panel_buttons
+from keyboards.reply_keyboards import main_buttons
 from utils.states import TopUpState
+from utils.states import UnbanUserState
+from utils.states import BanUserState
+from utils.states import MailingState
 from utils.payments import create_invoice
 
 
@@ -54,3 +65,73 @@ async def register_message_handlers(dp, bot, mongo):
             keyboard = await payment_button(uuid, link)
             await message.answer("Click on the button to pay", reply_markup=keyboard)
         await state.clear()
+
+    @dp.message(F.text.lower() == "admin panel")
+    async def admin_panel(message: types.Message):
+        user_id = message.from_user.id
+        user_role = await get_user_role(mongo, user_id)
+        if user_role == 'admin':
+            keyboard = await admin_panel_buttons(mongo, user_id)
+            await message.answer("You have access to the admin panel", reply_markup=keyboard)
+        else:
+            await message.answer("Wrong message, try again.")
+
+    @dp.message(F.text.lower() == "mailing")
+    async def mailing(message: types.Message, state: FSMContext):
+        user_id = message.from_user.id
+        user_role = await get_user_role(mongo, user_id)
+        if user_role == 'admin':
+            await message.answer("Input message for mailing")
+            await state.set_state(MailingState.waiting_for_message)
+        else:
+            await message.answer("Wrong message, try again.")
+
+    @dp.message(F.text.lower() == "admins management")
+    async def admins_management(message: types.Message):
+        user_id = message.from_user.id
+        user_role = await get_user_role(mongo, user_id)
+        if user_role == 'admin':
+            message_text = await get_admin_list(mongo)
+            await message.reply(message_text)
+        else:
+            await message.answer("Wrong message, try again.")
+
+    @dp.message(F.text.lower() == "users management")
+    async def users_management(message: types.Message):
+        user_id = message.from_user.id
+        user_role = await get_user_role(mongo, user_id)
+        if user_role == 'admin':
+            message_text = await get_users_list(mongo)
+            keyboard = await users_managment_button()
+            await message.reply(message_text, reply_markup=keyboard)
+        else:
+            await message.answer("Wrong message, try again.")
+
+    @dp.message(F.text.lower() == "back to main menu")
+    async def back_to_main_menu(message: types.Message):
+        user_id = message.from_user.id
+        user_role = await get_user_role(mongo, user_id)
+        if user_role == 'admin':
+            keyboard = await main_buttons(mongo, message.from_user.id)
+            await message.reply("You are back to the main menu", reply_markup=keyboard)
+        else:
+            await message.answer("Wrong message, try again.")
+
+    @dp.message(BanUserState.waiting_for_user_id, F.text)
+    async def ban_user(message: types.Message, state: FSMContext):
+        user_id = message.text
+        if user_id.isdigit() is False:
+            await message.answer("User ID must be a number")
+
+        message_text = await change_users_status(mongo, user_id, True)
+        await message.answer(message_text)
+        await state.clear()
+
+    @dp.message(UnbanUserState.waiting_for_user_id, F.text)
+    async def unban_user(message: types.Message, state: FSMContext):
+        user_id = message.text
+        if user_id.isdigit() is False:
+            await message.answer("User ID must be a number")
+
+        message_text = await change_users_status(mongo, user_id, False)
+        await message.answer(message_text)

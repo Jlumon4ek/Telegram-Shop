@@ -31,3 +31,27 @@ async def main_buttons(mongo, user_id):
         keyboard=buttons,
     )
     return keyboard_markup
+
+
+async def admin_panel_buttons(mongo, user_id):
+    buttons = [
+        [
+            types.KeyboardButton(text="Admins management"),
+            types.KeyboardButton(text="Users management"),
+        ],
+        [
+            types.KeyboardButton(text="Product management"),
+            types.KeyboardButton(text="Category management"),
+            types.KeyboardButton(text="Mailing"),
+        ],
+        [
+            types.KeyboardButton(text="Back to main menu"),
+        ],
+    ]
+
+    keyboard_markup = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        keyboard=buttons,
+    )
+
+    return keyboard_markup

@@ -56,7 +56,7 @@ async def check_payment_status(mongo, uuid, user_id, username, fullname, bot, at
             "Authorization": f"Token {crypto_cloud_token}"
         }
         data = {
-            "uuids": ['INV-H0X0ARGI']
+            "uuids": [f"{uuid}"]
         }
 
         invoice_status = None
