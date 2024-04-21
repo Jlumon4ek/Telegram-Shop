@@ -61,3 +61,11 @@ async def get_user_role(mongo, user_id):
     if user:
         return user.get("role", "default")
     return "default"
+
+
+async def get_user_balance(mongo, user_id):
+    users_collection = mongo["users"]
+    user = await users_collection.find_one({"_id": user_id})
+    if user:
+        return user.get("balance", 0)
+    return 0
