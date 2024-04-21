@@ -21,3 +21,37 @@ async def profile_keyboard():
         builder.row(*kb[i:i+2])
 
     return builder.as_markup()
+
+
+async def cancel_payment_input_button():
+    builder = InlineKeyboardBuilder()
+    kb = [
+        types.InlineKeyboardButton(
+            text="Cancel",
+            callback_data="undo_input_amount"),
+    ]
+
+    builder.row(*kb)
+
+    return builder.as_markup()
+
+
+async def payment_button(uuid, link):
+    builder = InlineKeyboardBuilder()
+    kb = [
+        types.InlineKeyboardButton(
+            text="Pay",
+            url=f"{link}",
+            callback_data="pay"),
+        types.InlineKeyboardButton(
+            text="Done",
+            callback_data=f"done_{uuid}"),
+        types.InlineKeyboardButton(
+            text="Cancel",
+            callback_data=f"cancel_{uuid}"),
+    ]
+
+    for i in range(0, len(kb), 2):
+        builder.row(*kb[i:i+2])
+
+    return builder.as_markup()

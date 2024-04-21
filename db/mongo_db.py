@@ -7,7 +7,7 @@ from datetime import datetime
 def create_mongo_connection():
     try:
         client = AsyncIOMotorClient("mongodb://localhost:27017")
-        db = client["gv_market"]
+        db = client["gv_store"]
         print("Connection to MongoDB successful")
         return db
     except ConnectionFailure as e:
@@ -69,3 +69,39 @@ async def get_user_balance(mongo, user_id):
     if user:
         return user.get("balance", 0)
     return 0
+
+
+async def update_user_balance(mongo, user_id, received_usd):
+    await mongo.users.update_one(
+        {"_id": user_id},
+        {"$inc": {"balance": received_usd}}
+    )
+
+
+async def record_balance_history(mongo, user_id, received_usd, username, fullname, uuid):
+    document = {
+        "user_id": user_id,
+        "amount": received_usd,
+        "date": datetime.utcnow(),
+        "username": username,
+        "fullname": fullname,
+        "payment_link": f"https://pay.cryptocloud.plus/{uuid}"
+    }
+
+    await mongo.balance_history.insert_one(document)
+    print("[INFO] Balance history recorded successfully")
+
+
+async def get_balance_history(mongo, user_id):
+    balance_history_collection = mongo['balance_history']
+    cursor = balance_history_collection.find(
+        {"user_id": user_id}, {"_id": 0, "date": 1, "amount": 1})
+    results = await cursor.to_list(length=None)
+    output = "History of replenishment:\n\n"
+    for result in results:
+        date = result.get('date').strftime(
+            '%Y-%m-%d %H:%M:%S')
+
+        amount = result.get('amount')
+        output += f"{date} : {amount}$\n"
+    return output

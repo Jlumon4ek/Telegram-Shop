@@ -6,7 +6,9 @@ from aiogram.fsm.context import FSMContext
 
 """Importing my own modules"""
 from db.mongo_db import get_user_balance
-from keyboards.inline_keyboards import profile_keyboard
+from keyboards.inline_keyboards import profile_keyboard, payment_button
+from utils.states import TopUpState
+from utils.payments import create_invoice
 
 
 async def register_message_handlers(dp, bot, mongo):
@@ -40,3 +42,15 @@ async def register_message_handlers(dp, bot, mongo):
             [f"{key}: {value}" for key, value in user_info.items()])
         keyboard = await profile_keyboard()
         await message.reply(profile_message, reply_markup=keyboard)
+
+    @dp.message(TopUpState.waiting_for_amount, F.text)
+    async def process_top_up_amount(message: types.Message, state: FSMContext):
+        amount = message.text
+        if amount.isdigit() is False:
+            await message.answer("Amount must be a number")
+
+        uuid, link = await create_invoice(amount=amount)
+        if link:
+            keyboard = await payment_button(uuid, link)
+            await message.answer("Click on the button to pay", reply_markup=keyboard)
+        await state.clear()
