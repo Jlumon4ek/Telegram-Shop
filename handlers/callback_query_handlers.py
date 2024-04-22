@@ -18,6 +18,8 @@ from db.mongo_db import get_subcategory_info
 from db.mongo_db import delete_favorite
 from db.mongo_db import add_to_favorites
 from db.mongo_db import get_group_values
+from db.mongo_db import buy_product_logic
+from db.mongo_db import history_purchase
 from keyboards.inline_keyboards import get_subcategories_buttons
 from keyboards.inline_keyboards import get_groups_buttons
 from keyboards.inline_keyboards import action_buttons
@@ -137,8 +139,15 @@ async def register_callback_query_handlers(dp, bot, mongo):
 
     @dp.callback_query(lambda c: c.data.startswith('buy_'))
     async def buy_product(callback_query: types.CallbackQuery):
+        user_id = callback_query.from_user.id
+        _, group_info = callback_query.data.split('buy_', 1)
+        data = group_info.split('_')
+        subcategory_id = data[0]
+        group_by = data[1]
+        group_value = data[2]
+        text = await buy_product_logic(mongo, user_id, subcategory_id, group_by, group_value)
         await callback_query.answer()
-        await callback_query.message.answer(f"You have successfully bought the product {callback_query.data.split('_')}")
+        await callback_query.message.answer(text)
 
     @dp.callback_query(lambda c: c.data.startswith('add_to_favorites_'))
     async def add_to_favorites_button(callback_query: types.CallbackQuery):
@@ -191,4 +200,8 @@ async def register_callback_query_handlers(dp, bot, mongo):
         favorites_buttons = await get_favorites_button(mongo, callback.from_user.id)
         await callback.message.answer("List of favorites", reply_markup=favorites_buttons)
 
-    # @dp.callback_query(F.data == "order_history")
+    @dp.callback_query(F.data == "order_history")
+    async def get_order_history(callback: types.CallbackQuery):
+        await callback.answer()
+        message = await history_purchase(mongo, callback.from_user.id)
+        await callback.message.answer(f"Order history: {message}")

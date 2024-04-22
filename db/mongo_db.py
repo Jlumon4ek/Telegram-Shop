@@ -3,6 +3,7 @@ from pymongo.errors import ConnectionFailure
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
 from bson import ObjectId
+import random
 
 
 def create_mongo_connection():
@@ -268,5 +269,56 @@ async def delete_favorite(mongo, user_id, subcategory_id, group_by, group_value)
 
 async def get_favorites_list(mongo, user_id):
     cursor = mongo.favorites.find({"user_id": user_id})
+    results = await cursor.to_list(length=None)
+    return results
+
+
+async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_value):
+    subcategory = await get_subcategory_info(mongo, subcategory_id)
+    subcategory_price = subcategory.get("price")
+    user_balance = await get_user_balance(mongo, user_id)
+
+    if float(user_balance) < float(subcategory_price):
+        return "Insufficient funds."
+    else:
+        if group_by == 'None':
+            await update_user_balance(mongo, user_id, -subcategory_price)
+            cursor = mongo.products.find({
+                "subcategory_id": ObjectId(subcategory_id),
+                "status": 'available',
+            })
+            results = await cursor.to_list(length=None)
+
+            mongo.purchase_history.insert_one({
+                "user_id": user_id,
+                "product": subcategory.get("name"),
+                "subcategory_id": subcategory_id,
+                "group_by": group_by,
+                "group_value": group_value,
+                "timestamp": datetime.utcnow(),
+            })
+            return f"Product purchased successfully. {results}"
+        else:
+            await update_user_balance(mongo, user_id, -subcategory_price)
+            cursor = mongo.products.find({
+                f"{group_by}": f"{group_value}",
+                "status": 'available',
+            })
+            results = await cursor.to_list(length=None)
+
+            mongo.purchase_history.insert_one({
+                "user_id": user_id,
+                "product": group_value,
+                "subcategory_id": subcategory_id,
+                "group_by": group_by,
+                "group_value": group_value,
+                "timestamp": datetime.utcnow(),
+            })
+
+            return f"Product purchased successfully \n {results} "
+
+
+async def history_purchase(mongo, user_id):
+    cursor = mongo.purchase_history.find({"user_id": user_id})
     results = await cursor.to_list(length=None)
     return results
