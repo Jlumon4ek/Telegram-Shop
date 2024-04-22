@@ -11,6 +11,7 @@ from db.mongo_db import get_admin_list
 from db.mongo_db import get_users_list
 from db.mongo_db import change_users_status
 from keyboards.inline_keyboards import profile_keyboard
+from keyboards.inline_keyboards import get_categories_buttons
 from keyboards.inline_keyboards import payment_button
 from keyboards.inline_keyboards import users_managment_button
 from keyboards.reply_keyboards import admin_panel_buttons
@@ -135,3 +136,8 @@ async def register_message_handlers(dp, bot, mongo):
 
         message_text = await change_users_status(mongo, user_id, False)
         await message.answer(message_text)
+
+    @dp.message(F.text.lower() == "all products")
+    async def all_products(message: types.Message):
+        keyboards = await get_categories_buttons(mongo)
+        await message.reply("All products:", reply_markup=keyboards)

@@ -2,6 +2,7 @@ import asyncio
 from pymongo.errors import ConnectionFailure
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
+from bson import ObjectId
 
 
 def create_mongo_connection():
@@ -155,3 +156,117 @@ async def change_users_status(mongo, user_id, status: bool):
 
     except Exception as e:
         return f"An error occurred while updating the status of user {user_id}."
+
+
+async def get_categories_list(mongo):
+    cursor = mongo.categories.find({}, {'name': 1})
+    return [category async for category in cursor]
+
+
+async def get_category_info(mongo, category_id):
+    oid = ObjectId(category_id)
+    return await mongo.categories.find_one({"_id": oid})
+
+
+async def get_subcategories_list(mongo, category_id):
+    oid = ObjectId(category_id)
+
+    cursor = mongo.subcategories.find(
+        {"category_id": oid}, {'name': 1})
+    return [subcategory async for subcategory in cursor]
+
+
+async def get_subcategory_info(mongo, subcategory_id):
+    oid = ObjectId(subcategory_id)
+    return await mongo.subcategories.find_one({"_id": oid})
+
+
+async def get_group_values(mongo, subcategory_id, group_by):
+    oid = ObjectId(subcategory_id)
+    cursor = mongo.products.aggregate([
+        {"$match": {"subcategory_id": oid}},
+        {"$group": {"_id": f"${group_by}"}}
+    ])
+
+    return [group async for group in cursor]
+
+
+async def is_favorite_product(mongo, user_id, subcategory_id, group_by, group_value):
+    group_by = str(group_by)
+    if group_by == 'None':
+        subcategory = await get_subcategory_info(mongo, subcategory_id)
+        subcategory_name = subcategory.get("name")
+
+        result = await mongo.favorites.find_one({
+            "user_id": user_id,
+            "product": subcategory_name,
+            "subcategory_id": subcategory_id,
+        })
+    else:
+        result = await mongo.favorites.find_one({
+            "user_id": user_id,
+            "product": group_value,
+            "subcategory_id": subcategory_id
+        })
+
+    return bool(result)
+
+
+async def add_to_favorites(mongo, user_id, subcategory_id, group_by, group_value):
+    if group_by == 'None':
+        subcategory = await get_subcategory_info(mongo, subcategory_id)
+        subcategory_name = subcategory.get("name")
+        document = {
+            "user_id": user_id,
+            "product": subcategory_name,
+            "subcategory_id": subcategory_id,
+            "group_by": group_value,
+            "group_value": group_value,
+            "timestamp": datetime.utcnow(),
+        }
+        title = subcategory_name
+    else:
+        document = {
+            "user_id": user_id,
+            "product": group_value,
+            "subcategory_id": subcategory_id,
+            "group_by": group_by,
+            "group_value": group_value,
+            "timestamp": datetime.utcnow(),
+        }
+        title = group_value
+
+    await mongo.favorites.insert_one(document)
+    return True, title
+
+
+async def delete_favorite(mongo, user_id, subcategory_id, group_by, group_value):
+    if group_by == 'None':
+        subcategory = await get_subcategory_info(mongo, subcategory_id)
+        subcategory_name = subcategory.get("name")
+        document = {
+            "user_id": user_id,
+            "product": subcategory_name,
+            "subcategory_id": subcategory_id,
+            "group_by": group_value,
+            "group_value": group_value,
+        }
+        title = subcategory_name
+    else:
+        document = {
+            "user_id": user_id,
+            "product": group_value,
+            "subcategory_id": subcategory_id,
+            "group_by": group_by,
+            "group_value": group_value,
+        }
+        title = group_value
+
+    await mongo.favorites.delete_one(document)
+    return True, title
+
+
+async def get_favorites_list(mongo, user_id):
+    cursor = mongo.favorites.find({"user_id": user_id})
+    results = await cursor.to_list(length=None)
+    return results
