@@ -8,19 +8,30 @@ from aiogram.fsm.context import FSMContext
 from db.mongo_db import get_user_balance
 from db.mongo_db import get_user_role
 from db.mongo_db import get_admin_list
+from db.mongo_db import structure_data
 from db.mongo_db import get_users_list
+from db.mongo_db import add_subcategory_db
+from db.mongo_db import add_category
+from db.mongo_db import add_product_db
+from db.mongo_db import multiple_buy_update
 from db.mongo_db import change_users_status
 from keyboards.inline_keyboards import profile_keyboard
 from keyboards.inline_keyboards import get_categories_buttons
 from keyboards.inline_keyboards import payment_button
+from keyboards.inline_keyboards import choose_category
 from keyboards.inline_keyboards import users_managment_button
+from keyboards.inline_keyboards import get_admin_categories_buttons
 from keyboards.reply_keyboards import admin_panel_buttons
 from keyboards.reply_keyboards import main_buttons
 from utils.states import TopUpState
 from utils.states import UnbanUserState
 from utils.states import BanUserState
+from utils.states import CountOfProductsState
+from utils.states import CategoryNameState
+from utils.states import ProductState
 from utils.states import MailingState
 from utils.payments import create_invoice
+from utils.states import SubcategoryForm
 
 
 async def register_message_handlers(dp, bot, mongo):
@@ -141,3 +152,96 @@ async def register_message_handlers(dp, bot, mongo):
     async def all_products(message: types.Message):
         keyboards = await get_categories_buttons(mongo)
         await message.reply("All products:", reply_markup=keyboards)
+
+    @dp.message(F.text.lower() == "category management")
+    async def category_management(message: types.Message, state: FSMContext):
+        user_id = message.from_user.id
+        user_role = await get_user_role(mongo, user_id)
+        if user_role == 'admin':
+            await message.reply("Input category name for adding: ")
+            await state.set_state(CategoryNameState.waiting_for_category_name,)
+
+    @dp.message(CategoryNameState.waiting_for_category_name, F.text)
+    async def input_add_category(message: types.Message, state: FSMContext):
+        category_name = message.text
+        message_text = await add_category(mongo, category_name)
+        await message.answer(message_text)
+        await state.clear()
+
+    @dp.message(F.text.lower() == "product availability")
+    async def product_availability(message: types.Message):
+        message_text = await structure_data(mongo)
+        await message.answer(f"Product availability\n {message_text}")
+
+    @dp.message(CountOfProductsState.waiting_for_count, F.text)
+    async def input_count_of_products(message: types.Message, state: FSMContext):
+        data = await state.get_data()
+        user_id = message.from_user.id
+        subcategory_id = data.get('subcategory_id')
+        group_by = data.get('group_by')
+        group_value = data.get('group_value')
+        count = message.text
+        if count.isdigit() is False:
+            await message.answer("Count must be a number")
+
+        else:
+            message_text = await multiple_buy_update(mongo, user_id, subcategory_id,
+                                                     group_by, group_value, count)
+
+            await message.answer(f"{message_text}")
+        await state.clear()
+
+    @dp.message(F.text.lower() == "product management")
+    async def category_management(message: types.Message, state: FSMContext):
+        user_id = message.from_user.id
+        user_role = await get_user_role(mongo, user_id)
+        if user_role == 'admin':
+            keyboards = await get_admin_categories_buttons(mongo)
+            await message.reply("Choose category for adding products: ", reply_markup=keyboards)
+
+    @dp.message(ProductState.waiting_for_product, F.text)
+    async def input_products(message: types.Message, state: FSMContext):
+        products = message.text
+        data = await state.get_data()
+        subcategory_id = data.get('subcategory_id')
+
+        message_text = await add_product_db(mongo, subcategory_id, products)
+        await message.answer(f"{message_text}")
+        await state.clear()
+
+    @dp.message(F.text.lower() == "subcategory managment")
+    async def subcategory_management(message: types.Message, state: FSMContext):
+        message_text = await choose_category(mongo)
+        await message.answer(f"Subcategory management\n Choose category for adding subcategory: ", reply_markup=message_text)
+
+    @dp.message(SubcategoryForm.waiting_for_subcategory_name, F.text)
+    async def input_subcategory_name(message: types.Message, state: FSMContext):
+        subcategory_name = message.text
+        await state.update_data(subcategory_name=subcategory_name)
+        await message.answer("Input subcategory price: ")
+        await state.set_state(SubcategoryForm.waiting_for_subcategory_price, )
+
+    @dp.message(SubcategoryForm.waiting_for_subcategory_price, F.text)
+    async def input_subcategory_price(message: types.Message, state: FSMContext):
+        subcategory_price = message.text
+        await state.update_data(subcategory_price=subcategory_price)
+        await message.answer("Enter the fields that will be in the product, separated by commas: ")
+        await state.set_state(SubcategoryForm.waiting_for_subcategory_fileds,)
+
+    @dp.message(SubcategoryForm.waiting_for_subcategory_fileds, F.text)
+    async def input_subcategory_fields(message: types.Message, state: FSMContext):
+        fields = message.text
+        await state.update_data(fields=fields)
+        await message.answer("Input product subgroups, if you don’t need to group them, enter none: ")
+        await state.set_state(SubcategoryForm.waiting_for_subcategory_group_by, )
+
+    @dp.message(SubcategoryForm.waiting_for_subcategory_group_by, F.text)
+    async def input_subcategory_group_by(message: types.Message, state: FSMContext):
+        group_by = message.text
+        data = await state.get_data()
+        category_id = data.get('category_id')
+        subcategory_name = data.get('subcategory_name')
+        subcategory_price = data.get('subcategory_price')
+        fields = data.get('fields')
+        message_text = await add_subcategory_db(mongo, category_id, subcategory_name, subcategory_price, group_by, fields)
+        await message.answer(f"{message_text}")

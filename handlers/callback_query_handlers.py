@@ -10,22 +10,28 @@ from keyboards.inline_keyboards import cancel_payment_input_button
 from utils.states import TopUpState
 from utils.states import BanUserState
 from utils.states import UnbanUserState
+from utils.states import CountOfProductsState
+from utils.states import ProductState
+from utils.states import SubcategoryForm
 from utils.payments import invoice_cancel
 from utils.payments import check_payment_status
 from db.mongo_db import get_balance_history
 from db.mongo_db import get_category_info
+from db.mongo_db import get_fileds
 from db.mongo_db import get_subcategory_info
 from db.mongo_db import delete_favorite
 from db.mongo_db import add_to_favorites
 from db.mongo_db import get_group_values
 from db.mongo_db import buy_product_logic
-from db.mongo_db import history_purchase
+from db.mongo_db import get_product_info
 from keyboards.inline_keyboards import get_subcategories_buttons
 from keyboards.inline_keyboards import get_groups_buttons
 from keyboards.inline_keyboards import action_buttons
 from keyboards.inline_keyboards import single_group_buttons
+from keyboards.inline_keyboards import get_admin_subcategories_buttons
 from keyboards.inline_keyboards import get_categories_buttons
 from keyboards.inline_keyboards import get_favorites_button
+from keyboards.inline_keyboards import purchase_buttons
 
 
 async def register_callback_query_handlers(dp, bot, mongo):
@@ -99,12 +105,12 @@ async def register_callback_query_handlers(dp, bot, mongo):
         subcategory = await get_subcategory_info(mongo, subcategory_id)
         subcategory_name = subcategory.get("name")
         group_by = subcategory.get("group_by")
-        if group_by is not None:
+        if group_by != 'none':
             group_keyboards = await get_groups_buttons(mongo, subcategory_id, group_by)
             await callback.message.answer(f"Products of subcategory {subcategory_name}", reply_markup=group_keyboards)
 
         else:
-            single_group = await single_group_buttons(subcategory_id, subcategory_name)
+            single_group = await single_group_buttons(mongo, subcategory_id, subcategory_name)
             await callback.message.answer(f"Products of subcategory {subcategory_name}:", reply_markup=single_group)
 
         await callback.answer()
@@ -199,9 +205,56 @@ async def register_callback_query_handlers(dp, bot, mongo):
     async def get_favorites(callback: types.CallbackQuery):
         favorites_buttons = await get_favorites_button(mongo, callback.from_user.id)
         await callback.message.answer("List of favorites", reply_markup=favorites_buttons)
+        await callback.answer()
 
     @dp.callback_query(F.data == "order_history")
     async def get_order_history(callback: types.CallbackQuery):
         await callback.answer()
-        message = await history_purchase(mongo, callback.from_user.id)
-        await callback.message.answer(f"Order history: {message}")
+        message = await purchase_buttons(mongo, callback.from_user.id)
+        await callback.message.answer(f"Order history:", reply_markup=message)
+
+    @dp.callback_query(F.data.startswith("purchase_"))
+    async def get_order_history(callback: types.CallbackQuery):
+        _, order_id = callback.data.split('purchase_', 1)
+        order_info = await get_product_info(mongo, order_id)
+        await callback.answer()
+        await callback.message.answer(f"Item:\n{order_info}")
+
+    @dp.callback_query(F.data.startswith("multiple_"))
+    async def multiple_purchase(callback: types.CallbackQuery, state: FSMContext):
+        user_id = callback.from_user.id
+        _, group_info = callback.data.split('multiple_', 1)
+        data = group_info.split('_')
+        subcategory_id = data[0]
+        group_by = data[1]
+        group_value = data[2]
+        await state.update_data(subcategory_id=subcategory_id, group_by=group_by, group_value=group_value)
+        await callback.answer()
+        await callback.message.answer("Input count of items to buy:")
+        await state.set_state(CountOfProductsState.waiting_for_count, )
+
+    @dp.callback_query(F.data.startswith("admincategory_"))
+    async def get_add_product_category(callback: types.CallbackQuery):
+        category_id = callback.data.split('_')[1]
+        category = await get_category_info(mongo, category_id)
+        category_name = category.get("name")
+        keyboards = await get_admin_subcategories_buttons(mongo, category_id)
+        await callback.answer()
+        await callback.message.answer(f"Subcategories of {category_name}:", reply_markup=keyboards)
+
+    @dp.callback_query(F.data.startswith("adminsubcategory_"))
+    async def get_add_product_subcategory(callback: types.CallbackQuery, state: FSMContext):
+        subcategory_id = callback.data.split('_')[1]
+        await callback.answer()
+        message_text = await get_fileds(mongo, subcategory_id)
+        await callback.message.answer(f"Enter as follows: {':'.join(message_text)}")
+        await state.update_data(subcategory_id=subcategory_id)
+        await state.set_state(ProductState.waiting_for_product, )
+
+    @dp.callback_query(F.data.startswith("choose_"))
+    async def choose_category(callback: types.CallbackQuery, state: FSMContext):
+        category_id = callback.data.split('_')[1]
+        await state.update_data(category_id=category_id)
+        await callback.message.answer("Input subcategory name for adding: ")
+        await callback.answer()
+        await state.set_state(SubcategoryForm.waiting_for_subcategory_name)

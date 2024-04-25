@@ -7,7 +7,7 @@ from utils.config import TOKEN
 from utils.register_handlers import register_handlers
 from db.mongo_db import create_mongo_connection
 
-# logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()

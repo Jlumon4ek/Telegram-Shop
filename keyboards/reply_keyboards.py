@@ -38,11 +38,12 @@ async def admin_panel_buttons(mongo, user_id):
         [
             types.KeyboardButton(text="Admins management"),
             types.KeyboardButton(text="Users management"),
+            types.KeyboardButton(text="Mailing"),
         ],
         [
             types.KeyboardButton(text="Product management"),
             types.KeyboardButton(text="Category management"),
-            types.KeyboardButton(text="Mailing"),
+            types.KeyboardButton(text="Subcategory managment"),
         ],
         [
             types.KeyboardButton(text="Back to main menu"),
