@@ -4,11 +4,13 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
 from bson import ObjectId
 import random
+from utils.config import db_username, db_password, db_auth_source
 
 
 def create_mongo_connection():
     try:
-        client = AsyncIOMotorClient("mongodb://localhost:27017")
+        client = AsyncIOMotorClient(
+            f"mongodb://{db_username}:{db_password}@31.220.17.247:27017/?authSource={db_auth_source}")
         db = client["gv_store"]
         print("Connection to MongoDB successful")
         return db
@@ -585,6 +587,9 @@ async def add_product_db(mongo, subcategory_id, products):
     existing_products = []
     for product in products.split('\n'):
         product_data = product.split(':')
+        fields = [field.strip() for field in fields]
+        product_data = [data.strip() if isinstance(
+            data, str) else data for data in product_data]
         product_dict = dict(zip(fields, product_data))
 
         existing_product = await mongo.products.find_one(product_dict)
@@ -602,6 +607,8 @@ async def add_product_db(mongo, subcategory_id, products):
 
 
 async def add_subcategory_db(mongo, category_id, subcategory_name, price, group_by, fields):
+    group_by = None if group_by.lower() == 'none' else group_by
+
     subcategory = {
         "name": subcategory_name,
         "price": price,

@@ -245,3 +245,18 @@ async def register_message_handlers(dp, bot, mongo):
         fields = data.get('fields')
         message_text = await add_subcategory_db(mongo, category_id, subcategory_name, subcategory_price, group_by, fields)
         await message.answer(f"{message_text}")
+
+    @dp.message(MailingState.waiting_for_message, F.text)
+    async def process_mailing(message: types.Message, state: FSMContext):
+        users_cursor = mongo.users.find({"_id": {"$ne": message.from_user.id}})
+        users = await users_cursor.to_list(length=None)
+        count = 0
+        for user in users:
+            try:
+                await bot.send_message(user['_id'], message.text)
+                count += 1
+            except Exception as e:
+                print(f"Failed to send message to {user['_id']}: {str(e)}")
+
+        await state.clear()
+        await message.answer(f"Mailing completed! {count} messages sent.")

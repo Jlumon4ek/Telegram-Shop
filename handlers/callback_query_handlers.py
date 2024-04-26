@@ -105,13 +105,14 @@ async def register_callback_query_handlers(dp, bot, mongo):
         subcategory = await get_subcategory_info(mongo, subcategory_id)
         subcategory_name = subcategory.get("name")
         group_by = subcategory.get("group_by")
-        if group_by != 'none':
-            group_keyboards = await get_groups_buttons(mongo, subcategory_id, group_by)
-            await callback.message.answer(f"Products of subcategory {subcategory_name}", reply_markup=group_keyboards)
-
-        else:
+        group_by = str(group_by)
+        if group_by == 'None':
             single_group = await single_group_buttons(mongo, subcategory_id, subcategory_name)
             await callback.message.answer(f"Products of subcategory {subcategory_name}:", reply_markup=single_group)
+
+        if group_by != 'None':
+            group_keyboards = await get_groups_buttons(mongo, subcategory_id, group_by)
+            await callback.message.answer(f"Products of subcategory {subcategory_name}", reply_markup=group_keyboards)
 
         await callback.answer()
 
