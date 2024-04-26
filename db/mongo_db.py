@@ -2,7 +2,7 @@ import asyncio
 from pymongo.errors import ConnectionFailure
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
-from bson import ObjectId
+from bson.objectid import ObjectId
 import random
 from utils.config import db_username, db_password, db_auth_source
 
@@ -313,8 +313,8 @@ async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_valu
                 {"_id": product.get("_id")},
                 {"$set": {"status": "sold"}}
             )
-            hidden_fields = {"_id", "status", "subcategory_id"}
-
+            hidden_fields = {"_id", "status",
+                             "subcategory_id", "subcategory_name"}
             filtered_product = {k: v for k,
                                 v in product.items() if k not in hidden_fields}
 
@@ -352,8 +352,8 @@ async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_valu
                 {"_id": product.get("_id")},
                 {"$set": {"status": "sold"}}
             )
-            hidden_fields = {"_id", "status", "subcategory_id"}
-
+            hidden_fields = {"_id", "status",
+                             "subcategory_id", "subcategory_name"}
             filtered_product = {k: v for k,
                                 v in product.items() if k not in hidden_fields}
 
@@ -373,8 +373,8 @@ async def history_purchase(mongo, user_id):
 async def get_product_info(mongo, product_id):
     oid = ObjectId(product_id)
     product = await mongo.products.find_one({"_id": oid})
-    hidden_fields = {"_id", "status", "subcategory_id"}
-
+    hidden_fields = {"_id", "status",
+                     "subcategory_id", "subcategory_name"}
     filtered_product = {k: v for k,
                         v in product.items() if k not in hidden_fields}
 
@@ -522,7 +522,8 @@ async def multiple_buy_update(mongo, user_id, subcategory_id, group_by, group_va
                     'price': subcategory_price,
                 })
 
-                hidden_fields = {"_id", "status", "subcategory_id"}
+                hidden_fields = {"_id", "status",
+                                 "subcategory_id", "subcategory_name"}
 
                 filtered_product = {k: v for k,
                                     v in result.items() if k not in hidden_fields}
@@ -564,7 +565,8 @@ async def multiple_buy_update(mongo, user_id, subcategory_id, group_by, group_va
                     'price': subcategory_price,
                 })
 
-                hidden_fields = {"_id", "status", "subcategory_id"}
+                hidden_fields = {"_id", "status",
+                                 "subcategory_id", "subcategory_name"}
 
                 filtered_product = {k: v for k,
                                     v in result.items() if k not in hidden_fields}
@@ -583,6 +585,7 @@ async def get_fileds(mongo, subcategory_id):
 
 async def add_product_db(mongo, subcategory_id, products):
     fields = await get_fileds(mongo, subcategory_id)
+    subcategory_info = await get_subcategory_info(mongo, subcategory_id)
     added_products = []
     existing_products = []
     for product in products.split('\n'):
@@ -596,6 +599,8 @@ async def add_product_db(mongo, subcategory_id, products):
         if existing_product:
             existing_products.append(product)
         else:
+            product_dict['price'] = subcategory_info['price']
+            product_dict['subcategory_name'] = subcategory_info['name']
             product_dict['status'] = 'available'
             product_dict['subcategory_id'] = ObjectId(subcategory_id)
             await mongo.products.insert_one(product_dict)

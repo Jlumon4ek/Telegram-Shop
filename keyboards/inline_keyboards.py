@@ -12,7 +12,7 @@ from db.mongo_db import get_subcategory_info
 from db.mongo_db import get_single_group_count
 from db.mongo_db import get_subcategory_count
 from db.mongo_db import history_purchase
-from bson import ObjectId
+from bson.objectid import ObjectId  # Заметьте изменение способа импорта
 from datetime import datetime
 
 

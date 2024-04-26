@@ -32,6 +32,7 @@ from utils.states import ProductState
 from utils.states import MailingState
 from utils.payments import create_invoice
 from utils.states import SubcategoryForm
+from aiogram.enums import ParseMode
 
 
 async def register_message_handlers(dp, bot, mongo):
@@ -39,11 +40,13 @@ async def register_message_handlers(dp, bot, mongo):
     async def rules(message: types.Message):
         with open("./files/txt/rules_message.txt", "r", encoding="utf-8") as file:
             rules_text = file.read()
-        await message.reply(rules_text)
+        rules_text = rules_text.replace('.', '\.').replace('-', '\-').replace('+', '\+').replace('=', '\=').replace('(', '\(').replace(')', '\)').replace('[', '\[').replace(']', '\]').replace(
+            '{', '\{').replace('}', '\}').replace('!', '\!').replace('_', '\_').replace('`', '\`').replace('>', '\>').replace('#', '\#').replace('|', '\|').replace('~', '\~')
+        await message.reply(rules_text, parse_mode=ParseMode.MARKDOWN_V2)
 
     @dp.message(F.text.lower() == "help")
     async def help(message: types.Message):
-        await message.reply("For any questions please contact me: \n\nTG: https://t.me/xwikkwix")
+        await message.reply("For any questions please contact me: \n\nTG: https://t.me/GV_support_24")
 
     @dp.message(F.text.lower() == "about us")
     async def about_us(message: types.Message):
