@@ -7,8 +7,10 @@ from db.mongo_db import get_subcategories_list
 from db.mongo_db import get_group_values
 from db.mongo_db import is_favorite_product
 from db.mongo_db import get_favorites_list
+from db.mongo_db import check_have_products
 from db.mongo_db import get_groupped_count
 from db.mongo_db import get_subcategory_info
+from db.mongo_db import check_have_subcategories
 from db.mongo_db import get_single_group_count
 from db.mongo_db import get_subcategory_count
 from db.mongo_db import history_purchase
@@ -91,9 +93,11 @@ async def get_categories_buttons(mongo):
     builder = InlineKeyboardBuilder()
     kb = []
     for category in categories:
-        builder.row(types.InlineKeyboardButton(
-            text=f"{category['name']}",
-            callback_data=f"category_{category['_id']}"))
+        count = await check_have_subcategories(mongo, category['_id'])
+        if count > 0:
+            builder.row(types.InlineKeyboardButton(
+                text=f"{category['name']}",
+                callback_data=f"category_{category['_id']}"))
 
     return builder.as_markup()
 
@@ -103,10 +107,10 @@ async def get_subcategories_buttons(mongo, category_id):
     builder = InlineKeyboardBuilder()
     for subcategory in subcategories:
         count = await get_subcategory_count(mongo, subcategory['_id'])
-
-        builder.row(types.InlineKeyboardButton(
-            text=f"{subcategory['name']} | {count} items | {subcategory['price']}$",
-            callback_data=f"subcategory_{subcategory['_id']}"))
+        if count > 0:
+            builder.row(types.InlineKeyboardButton(
+                text=f"{subcategory['name']} | {count} items | {subcategory['price']}$",
+                callback_data=f"subcategory_{subcategory['_id']}"))
 
     return builder.as_markup()
 
@@ -126,10 +130,10 @@ async def get_groups_buttons(mongo, subcategory_id, group_by):
         )
     for group in group_values:
         products = await get_groupped_count(mongo, subcategory_id, group_by, group['_id'])
-
-        kb.append(types.InlineKeyboardButton(
-            text=f"{group['_id']} | {subcategrory.get('price')}$ | {products} items",
-            callback_data=f"group_{subcategory_id}_{group_by}_{group['_id']}"))
+        if products != 0:
+            kb.append(types.InlineKeyboardButton(
+                text=f"{group['_id']} | {subcategrory.get('price')}$ | {products} items",
+                callback_data=f"group_{subcategory_id}_{group_by}_{group['_id']}"))
 
     for i in range(0, len(kb), 2):
         builder.row(*kb[i:i+2])
@@ -140,10 +144,11 @@ async def get_groups_buttons(mongo, subcategory_id, group_by):
 async def single_group_buttons(mongo, subcategory_id, subcategory_name):
     builder = InlineKeyboardBuilder()
     count = await get_single_group_count(mongo, subcategory_id)
-    subcategory = await get_subcategory_info(mongo, subcategory_id)
-    builder.row(types.InlineKeyboardButton(
-        text=f"{subcategory_name} | {count} items | {subcategory.get('price')}$",
-        callback_data=f"item_{subcategory_id}_{subcategory_name}"))
+    if count > 0:
+        subcategory = await get_subcategory_info(mongo, subcategory_id)
+        builder.row(types.InlineKeyboardButton(
+            text=f"{subcategory_name} | {count} items | {subcategory.get('price')}$",
+            callback_data=f"item_{subcategory_id}_{subcategory_name}"))
 
     return builder.as_markup()
 

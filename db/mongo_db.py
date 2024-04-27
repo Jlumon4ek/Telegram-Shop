@@ -497,6 +497,7 @@ async def multiple_buy_update(mongo, user_id, subcategory_id, group_by, group_va
             cursor = mongo.products.find({
                 "subcategory_id": ObjectId(subcategory_id),
                 "status": 'available',
+                "subcategory_id": ObjectId(subcategory_id)
             }).limit(int(count))
             results = await cursor.to_list(length=None)
 
@@ -515,7 +516,7 @@ async def multiple_buy_update(mongo, user_id, subcategory_id, group_by, group_va
                     "user_id": user_id,
                     "product": subcategory.get("name"),
                     "product_id": result.get("_id"),
-                    "subcategory_id": subcategory_id,
+                    "subcategory_id": ObjectId(subcategory_id),
                     "group_by": group_by,
                     "group_value": group_value,
                     "timestamp": datetime.utcnow(),
@@ -540,6 +541,7 @@ async def multiple_buy_update(mongo, user_id, subcategory_id, group_by, group_va
             cursor = mongo.products.find({
                 f"{group_by}": f"{group_value}",
                 "status": 'available',
+                "subcategory_id": ObjectId(subcategory_id)
             }).limit(int(count))
             results = await cursor.to_list(length=None)
 
@@ -558,7 +560,7 @@ async def multiple_buy_update(mongo, user_id, subcategory_id, group_by, group_va
                     "user_id": user_id,
                     "product": group_value,
                     "product_id": result.get("_id"),
-                    "subcategory_id": subcategory_id,
+                    "subcategory_id": ObjectId(subcategory_id),
                     "group_by": group_by,
                     "group_value": group_value,
                     "timestamp": datetime.utcnow(),
@@ -624,3 +626,15 @@ async def add_subcategory_db(mongo, category_id, subcategory_name, price, group_
     }
     await mongo.subcategories.insert_one(subcategory)
     return "Subcategory added"
+
+
+async def check_have_subcategories(mongo, category_id):
+    oid = ObjectId(category_id)
+    count = await mongo.subcategories.count_documents({"category_id": oid})
+    return count
+
+
+async def check_have_products(mongo, subcategory_id):
+    oid = ObjectId(subcategory_id)
+    count = await mongo.products.count_documents({"subcategory_id": oid})
+    return count
