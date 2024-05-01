@@ -4,13 +4,13 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
 from bson.objectid import ObjectId
 import random
-from utils.config import db_username, db_password, db_auth_source
+from utils.config import db_link
 
 
 def create_mongo_connection():
     try:
         client = AsyncIOMotorClient(
-            f"mongodb://{db_username}:{db_password}@31.220.17.247:27017/?authSource={db_auth_source}")
+            f"{db_link}")
         db = client["gv_store"]
         print("Connection to MongoDB successful")
         return db
@@ -300,8 +300,8 @@ async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_valu
             mongo.purchase_history.insert_one({
                 "user_id": user_id,
                 "product": subcategory.get("name"),
-                "product_id": product.get("_id"),
-                "subcategory_id": subcategory_id,
+                "product_id": ObjectId(product.get("_id")),
+                "subcategory_id": ObjectId(subcategory_id),
                 "group_by": group_by,
                 "group_value": group_value,
                 "timestamp": datetime.utcnow(),
@@ -327,6 +327,7 @@ async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_valu
             cursor = mongo.products.find({
                 f"{group_by}": f"{group_value}",
                 "status": 'available',
+                "subcategory_id": ObjectId(subcategory_id)
             })
             results = await cursor.to_list(length=None)
 
@@ -340,8 +341,8 @@ async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_valu
             mongo.purchase_history.insert_one({
                 "user_id": user_id,
                 "product": group_value,
-                "product_id": product.get("_id"),
-                "subcategory_id": subcategory_id,
+                "product_id": ObjectId(product.get("_id")),
+                "subcategory_id": ObjectId(subcategory_id),
                 "group_by": group_by,
                 "group_value": group_value,
                 "timestamp": datetime.utcnow(),

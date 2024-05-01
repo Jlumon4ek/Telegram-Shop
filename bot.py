@@ -9,7 +9,7 @@ from db.mongo_db import create_mongo_connection
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=TOKEN)
+bot = Bot(token='7034430423:AAHD8aGVY3UiU1qH9dPGGuJbZQdMSn0y_Tk')
 dp = Dispatcher()
 
 

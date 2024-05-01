@@ -88,5 +88,7 @@ async def check_payment_status(mongo, uuid, user_id, username, fullname, bot, at
 
             break
         else:
+            print(
+                f"[INFO] Payment status: {invoice_status}, Received USD: {received_usd}. Attempt: {attempt + 1}")
             await asyncio.sleep(60)
         attempt += 1
