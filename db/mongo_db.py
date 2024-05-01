@@ -310,7 +310,8 @@ async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_valu
             })
 
             mongo.products.update_one(
-                {"_id": product.get("_id")},
+                {"_id": product.get("_id"), "subcategory_id": ObjectId(
+                    subcategory_id)},
                 {"$set": {"status": "sold"}}
             )
             hidden_fields = {"_id", "status",
@@ -350,7 +351,8 @@ async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_valu
             })
 
             mongo.products.update_one(
-                {"_id": product.get("_id")},
+                {"_id": product.get("_id"), "subcategory_id": ObjectId(
+                    subcategory_id)},
                 {"$set": {"status": "sold"}}
             )
             hidden_fields = {"_id", "status",
