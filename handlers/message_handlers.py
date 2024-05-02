@@ -117,10 +117,52 @@ async def register_message_handlers(dp, bot, mongo):
         user_role = await get_user_role(mongo, user_id)
         if user_role == 'admin':
             message_text = await get_users_list(mongo)
+
+            lines = message_text.split('\n')
+            messages = []
+            current_message = ""
+
+            for line in lines:
+                if len(current_message) + len(line) + 1 > 4096:
+                    messages.append(current_message)
+                    current_message = line
+                else:
+                    if current_message:
+                        current_message += '\n' + line
+                    else:
+                        current_message = line
+
+            if current_message:
+                messages.append(current_message)
+
             keyboard = await users_managment_button()
-            await message.reply(message_text, reply_markup=keyboard)
+
+            for msg in messages[:-1]:
+                await message.reply(msg)
+            await message.reply(messages[-1], reply_markup=keyboard)
         else:
             await message.answer("Wrong message, try again.")
+
+
+def split_message(message, max_length=4096):
+    lines = message.split('\n')
+    messages = []
+    current_message = ""
+
+    for line in lines:
+        if len(current_message) + len(line) + 1 > max_length:
+            messages.append(current_message)
+            current_message = line
+        else:
+            if current_message:
+                current_message += '\n' + line
+            else:
+                current_message = line
+
+    if current_message:
+        messages.append(current_message)
+
+    return messages
 
     @dp.message(F.text.lower() == "back to main menu")
     async def back_to_main_menu(message: types.Message):
