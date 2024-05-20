@@ -69,7 +69,7 @@ async def check_payment_status(mongo, uuid, user_id, username, fullname, bot, at
                     data = await response.json()
                     invoice = data['result'][0]
                     invoice_status = invoice['invoice_status']
-                    received_usd = invoice.get('received_usd')
+                    received_usd = invoice.get('amount_paid_usd')
 
         if invoice_status == "success" and received_usd > 0:
             try:
@@ -83,7 +83,8 @@ async def check_payment_status(mongo, uuid, user_id, username, fullname, bot, at
             await update_user_balance(mongo, user_id, received_usd)
             await bot.send_message(
                 user_id,
-                f"The payment was successfully processed. Your balance has been replenished by {received_usd}$"
+                f"The payment was successfully processed. Your balance has been replenished by {
+                    received_usd}$"
             )
 
             break

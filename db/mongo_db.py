@@ -127,7 +127,8 @@ async def get_users_list(mongo):
     results = await cursor.to_list(length=None)
     output = "List of users:\n\n"
     for result in results:
-        output += f"{result.get('_id')} - {result.get('fullname')} - {result.get('username')} - {result.get('banned')}\n"
+        output += f"{result.get('_id')} - {result.get('fullname')
+                                           } - {result.get('username')} - {result.get('banned')}\n"
     return output
 
 
@@ -295,7 +296,7 @@ async def buy_product_logic(mongo, user_id, subcategory_id, group_by, group_valu
 
             product = random.choice(results)
 
-            await update_user_balance(mongo, user_id, -subcategory_price)
+            await update_user_balance(mongo, user_id, -int(subcategory_price))
 
             mongo.purchase_history.insert_one({
                 "user_id": user_id,
@@ -487,99 +488,77 @@ async def multiple_buy_update(mongo, user_id, subcategory_id, group_by, group_va
     subcategory_price = subcategory.get("price")
     user_balance = await get_user_balance(mongo, user_id)
     total = float(subcategory_price) * float(count)
+    product_list = []
     if float(user_balance) < total:
-        return "Insufficient funds."
-
+        return ["Insufficient funds."]
     else:
-        product_str = ''
-        if group_by == 'None':
-            count_of_products = await get_single_group_count(mongo, subcategory_id)
-            if int(count) > int(count_of_products):
-                return "Not enough products in stock."
+        count_of_products = await get_count_of_products(mongo, subcategory_id, group_by, group_value)
+        if int(count) > int(count_of_products):
+            return ["Not enough products in stock."]
 
-            cursor = mongo.products.find({
-                "subcategory_id": ObjectId(subcategory_id),
-                "status": 'available',
-                "subcategory_id": ObjectId(subcategory_id)
-            }).limit(int(count))
-            results = await cursor.to_list(length=None)
+        query = await build_query(subcategory_id, group_by, group_value)
+        cursor = mongo.products.find(query).limit(int(count))
+        results = await cursor.to_list(length=None)
 
-            if not results:
-                return "No products found for this group value."
+        if not results:
+            return ["No products found for this group value."]
 
-            await update_user_balance(mongo, user_id, -float(subcategory_price)*float(count))
+        await update_user_balance(mongo, user_id, -float(subcategory_price)*float(count))
 
-            for result in results:
-                mongo.products.update_one(
-                    {"_id": result.get("_id")},
-                    {"$set": {"status": "sold"}}
-                )
+        for result in results:
+            await update_product_status(mongo, result)
+            await insert_purchase_history(
+                mongo, user_id, subcategory, result, group_by, group_value)
+            product_list.append(await filter_product(result))
 
-                mongo.purchase_history.insert_one({
-                    "user_id": user_id,
-                    "product": subcategory.get("name"),
-                    "product_id": result.get("_id"),
-                    "subcategory_id": ObjectId(subcategory_id),
-                    "group_by": group_by,
-                    "group_value": group_value,
-                    "timestamp": datetime.utcnow(),
-                    'price': subcategory_price,
-                })
+        return product_list
 
-                hidden_fields = {"_id", "status",
-                                 "subcategory_id", "subcategory_name"}
 
-                filtered_product = {k: v for k,
-                                    v in result.items() if k not in hidden_fields}
+async def get_count_of_products(mongo, subcategory_id, group_by, group_value):
+    if group_by == 'None':
+        return await get_single_group_count(mongo, subcategory_id)
+    else:
+        return await get_groupped_count(mongo, subcategory_id, group_by, group_value)
 
-                product_str += "\n\n" + "\n".join(
-                    [f"{key} : {value}" for key, value in filtered_product.items()])
 
-        else:
-            count_of_products = await get_groupped_count(
-                mongo, subcategory_id, group_by, group_value)
-            if int(count) > int(count_of_products):
-                return "Not enough products in stock."
+async def build_query(subcategory_id, group_by, group_value):
+    if group_by == 'None':
+        return {
+            "subcategory_id": ObjectId(subcategory_id),
+            "status": 'available',
+            "subcategory_id": ObjectId(subcategory_id)
+        }
+    else:
+        return {
+            f"{group_by}": f"{group_value}",
+            "status": 'available',
+            "subcategory_id": ObjectId(subcategory_id)
+        }
 
-            cursor = mongo.products.find({
-                f"{group_by}": f"{group_value}",
-                "status": 'available',
-                "subcategory_id": ObjectId(subcategory_id)
-            }).limit(int(count))
-            results = await cursor.to_list(length=None)
 
-            if not results:
-                return "No products found for this group value."
+async def update_product_status(mongo, result):
+    mongo.products.update_one(
+        {"_id": result.get("_id")},
+        {"$set": {"status": "sold"}}
+    )
 
-            await update_user_balance(mongo, user_id, -float(subcategory_price)*float(count))
 
-            for result in results:
-                mongo.products.update_one(
-                    {"_id": result.get("_id")},
-                    {"$set": {"status": "sold"}}
-                )
+async def insert_purchase_history(mongo, user_id, subcategory, result, group_by, group_value):
+    mongo.purchase_history.insert_one({
+        "user_id": user_id,
+        "product": subcategory.get("name"),
+        "product_id": result.get("_id"),
+        "subcategory_id": ObjectId(subcategory.get("_id")),
+        "group_by": group_by,
+        "group_value": group_value,
+        "timestamp": datetime.utcnow(),
+        'price': subcategory.get("price"),
+    })
 
-                mongo.purchase_history.insert_one({
-                    "user_id": user_id,
-                    "product": group_value,
-                    "product_id": result.get("_id"),
-                    "subcategory_id": ObjectId(subcategory_id),
-                    "group_by": group_by,
-                    "group_value": group_value,
-                    "timestamp": datetime.utcnow(),
-                    'price': subcategory_price,
-                })
 
-                hidden_fields = {"_id", "status",
-                                 "subcategory_id", "subcategory_name"}
-
-                filtered_product = {k: v for k,
-                                    v in result.items() if k not in hidden_fields}
-
-                product_str += "\n\n" + "\n".join(
-                    [f"{key} : {value}" for key, value in filtered_product.items()])
-
-        return f"Product purchased successfully\n{product_str}"
+async def filter_product(result):
+    hidden_fields = {"_id", "status", "subcategory_id", "subcategory_name"}
+    return [f"{key} : {value}" for key, value in result.items() if key not in hidden_fields]
 
 
 async def get_fileds(mongo, subcategory_id):

@@ -143,27 +143,6 @@ async def register_message_handlers(dp, bot, mongo):
         else:
             await message.answer("Wrong message, try again.")
 
-
-def split_message(message, max_length=4096):
-    lines = message.split('\n')
-    messages = []
-    current_message = ""
-
-    for line in lines:
-        if len(current_message) + len(line) + 1 > max_length:
-            messages.append(current_message)
-            current_message = line
-        else:
-            if current_message:
-                current_message += '\n' + line
-            else:
-                current_message = line
-
-    if current_message:
-        messages.append(current_message)
-
-    return messages
-
     @dp.message(F.text.lower() == "back to main menu")
     async def back_to_main_menu(message: types.Message):
         user_id = message.from_user.id
@@ -230,11 +209,30 @@ def split_message(message, max_length=4096):
             await message.answer("Count must be a number")
 
         else:
-            message_text = await multiple_buy_update(mongo, user_id, subcategory_id,
-                                                     group_by, group_value, count)
+            products = await multiple_buy_update(mongo, user_id, subcategory_id, group_by, group_value, count)
+            if isinstance(products[0], str):
+                await message.answer(products[0])
+                await state.clear()
+                return
 
-            await message.answer(f"{message_text}")
-        await state.clear()
+            max_length = 4096
+            message_text = "Product purchased successfully\n"
+
+            for product in products:
+                product_str = "\n".join(product)
+                if message_text != "Product purchased successfully\n":
+                    product_str = "\n\n" + product_str
+
+                if len(message_text + product_str) > max_length:
+                    await message.answer(message_text)
+                    message_text = "Product purchased successfully\n" + product_str
+                else:
+                    message_text += product_str
+
+            if message_text:
+                await message.answer(message_text)
+
+            await state.clear()
 
     @dp.message(F.text.lower() == "product management")
     async def category_management(message: types.Message, state: FSMContext):
@@ -291,14 +289,28 @@ def split_message(message, max_length=4096):
         message_text = await add_subcategory_db(mongo, category_id, subcategory_name, subcategory_price, group_by, fields)
         await message.answer(f"{message_text}")
 
-    @dp.message(MailingState.waiting_for_message, F.text)
+    @dp.message(MailingState.waiting_for_message)
     async def process_mailing(message: types.Message, state: FSMContext):
         users_cursor = mongo.users.find({"_id": {"$ne": message.from_user.id}})
         users = await users_cursor.to_list(length=None)
         count = 0
+
         for user in users:
             try:
-                await bot.send_message(user['_id'], message.text)
+                if message.content_type == 'text':
+                    await bot.send_message(user['_id'], message.text)
+                elif message.content_type == 'photo':
+                    await bot.send_photo(user['_id'], message.photo[-1].file_id, caption=message.caption)
+                elif message.content_type == 'video':
+                    await bot.send_video(user['_id'], message.video.file_id, caption=message.caption)
+                elif message.content_type == 'document':
+                    await bot.send_document(user['_id'], message.document.file_id, caption=message.caption)
+                elif message.content_type == 'audio':
+                    await bot.send_audio(user['_id'], message.audio.file_id, caption=message.caption)
+                elif message.content_type == 'voice':
+                    await bot.send_voice(user['_id'], message.voice.file_id, caption=message.caption)
+                elif message.content_type == 'animation':
+                    await bot.send_animation(user['_id'], message.animation.file_id, caption=message.caption)
                 count += 1
             except Exception as e:
                 print(f"Failed to send message to {user['_id']}: {str(e)}")
