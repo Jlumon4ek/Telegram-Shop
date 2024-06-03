@@ -6,14 +6,14 @@ from db.mongo_db import get_user_role
 async def main_buttons(mongo, user_id):
     buttons = [
         [
-            types.KeyboardButton(text="All products"),
-            types.KeyboardButton(text="Product availability"),
-            types.KeyboardButton(text="Profile"),
+            types.KeyboardButton(text="🛒 All products"),
+            types.KeyboardButton(text="📦 Product availability"),
+            types.KeyboardButton(text="👤 Profile"),
         ],
         [
-            types.KeyboardButton(text="Rules"),
-            types.KeyboardButton(text="Help"),
-            types.KeyboardButton(text="About us"),
+            types.KeyboardButton(text="📜 Rules"),
+            types.KeyboardButton(text="❓ Help"),
+            types.KeyboardButton(text="ℹ️ About us"),
         ],
     ]
     keyboard_markup = types.ReplyKeyboardMarkup(

@@ -14,7 +14,6 @@ from utils.states import CountOfProductsState
 from utils.states import ProductState
 from utils.states import SubcategoryForm
 from utils.payments import invoice_cancel
-from utils.payments import check_payment_status
 from db.mongo_db import get_balance_history
 from db.mongo_db import get_category_info
 from db.mongo_db import get_fileds
@@ -47,24 +46,14 @@ async def register_callback_query_handlers(dp, bot, mongo):
         uuid = callback.data.split('_')[1]
         response, data = await invoice_cancel(uuid)
         if response == "Success:" and data.get('status') == 'success' and 'ok' in data.get('result', []):
-            message_text = f"Payment with unique identifier: {uuid} was cancelled."
+            message_text = f"Payment with unique identifier: {
+                uuid} was cancelled."
 
         else:
             message_text = "An error occurred while trying to cancel the payment."
 
         await callback.message.edit_text(f"{message_text}")
         await callback.answer()
-
-    @dp.callback_query(F.data.startswith("done_"))
-    async def check_invoice(callback: types.CallbackQuery):
-        uuid = callback.data.split('_')[1]
-        await callback.message.edit_text("Your payment is processed and the money will be credited to your account within a few minutes")
-        await callback.answer()
-        user_id = callback.from_user.id
-        username = callback.from_user.username
-        fullname = callback.from_user.full_name
-        asyncio.create_task(check_payment_status(
-            mongo, uuid, user_id, username, fullname, bot))
 
     @dp.callback_query(F.data == "undo_input_amount")
     async def cancel_input_amount(callback: types.CallbackQuery, state: FSMContext):

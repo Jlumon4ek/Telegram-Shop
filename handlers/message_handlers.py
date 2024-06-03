@@ -33,10 +33,12 @@ from utils.states import MailingState
 from utils.payments import create_invoice
 from utils.states import SubcategoryForm
 from aiogram.enums import ParseMode
+from utils.payments import check_payment_status
+import asyncio
 
 
 async def register_message_handlers(dp, bot, mongo):
-    @dp.message(F.text.lower() == "rules")
+    @dp.message(F.text.lower() == "📜 rules")
     async def rules(message: types.Message):
         with open("./files/txt/rules_message.txt", "r", encoding="utf-8") as file:
             rules_text = file.read()
@@ -44,17 +46,17 @@ async def register_message_handlers(dp, bot, mongo):
             '{', '\{').replace('}', '\}').replace('!', '\!').replace('_', '\_').replace('`', '\`').replace('>', '\>').replace('#', '\#').replace('|', '\|').replace('~', '\~')
         await message.reply(rules_text, parse_mode=ParseMode.MARKDOWN_V2)
 
-    @dp.message(F.text.lower() == "help")
+    @dp.message(F.text.lower() == "❓ help")
     async def help(message: types.Message):
         await message.reply("For any questions please contact me: \n\nTG: https://t.me/GV_support_24")
 
-    @dp.message(F.text.lower() == "about us")
+    @dp.message(F.text.lower() == "ℹ️ about us")
     async def about_us(message: types.Message):
         with open(".//files//txt//about_us_message.txt", "r", encoding="utf-8") as file:
             about_us_text = file.read()
         await message.reply(about_us_text)
 
-    @dp.message(F.text.lower() == "profile")
+    @dp.message(F.text.lower() == "👤 profile")
     async def profile(message: types.Message):
         user_id = message.from_user.id
         balance = await get_user_balance(mongo, message.from_user.id)
@@ -78,6 +80,11 @@ async def register_message_handlers(dp, bot, mongo):
         uuid, link = await create_invoice(amount=amount)
         if link:
             keyboard = await payment_button(uuid, link)
+            user_id = message.from_user.id
+            username = message.from_user.username
+            fullname = message.from_user.full_name
+            asyncio.create_task(check_payment_status(
+                mongo, uuid, user_id, username, fullname, bot))
             await message.answer("Click on the button to pay", reply_markup=keyboard)
         await state.clear()
 
@@ -172,7 +179,7 @@ async def register_message_handlers(dp, bot, mongo):
         message_text = await change_users_status(mongo, user_id, False)
         await message.answer(message_text)
 
-    @dp.message(F.text.lower() == "all products")
+    @dp.message(F.text.lower() == "🛒 all products")
     async def all_products(message: types.Message):
         keyboards = await get_categories_buttons(mongo)
         await message.reply("All products:", reply_markup=keyboards)
@@ -192,7 +199,7 @@ async def register_message_handlers(dp, bot, mongo):
         await message.answer(message_text)
         await state.clear()
 
-    @dp.message(F.text.lower() == "product availability")
+    @dp.message(F.text.lower() == "📦 product availability")
     async def product_availability(message: types.Message):
         message_text = await structure_data(mongo)
         await message.answer(f"Product availability\n {message_text}")

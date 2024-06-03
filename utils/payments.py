@@ -50,7 +50,7 @@ async def invoice_cancel(uuid):
 
 
 async def check_payment_status(mongo, uuid, user_id, username, fullname, bot, attempt=0):
-    while attempt < 20:
+    while attempt < 30:
         url = "https://api.cryptocloud.plus/v2/invoice/merchant/info"
         headers = {
             "Authorization": f"Token {crypto_cloud_token}"

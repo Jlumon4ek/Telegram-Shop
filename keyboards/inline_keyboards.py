@@ -22,13 +22,13 @@ async def profile_keyboard():
     builder = InlineKeyboardBuilder()
     kb = [
         types.InlineKeyboardButton(
-            text="Purchase history", callback_data="order_history"),
+            text="📜 Purchase history", callback_data="order_history"),
         types.InlineKeyboardButton(
-            text="Top up the balance", callback_data="add_balance"),
+            text="💳 Top up the balance", callback_data="add_balance"),
         types.InlineKeyboardButton(
-            text="History of Replenishment", callback_data="balance_history"),
+            text="📈 History of Replenishment", callback_data="balance_history"),
         types.InlineKeyboardButton(
-            text="Featured Products", callback_data="favorite_items"),
+            text="🌟 Featured Products", callback_data="favorite_items"),
     ]
 
     for i in range(0, len(kb), 2):
@@ -41,7 +41,7 @@ async def cancel_payment_input_button():
     builder = InlineKeyboardBuilder()
     kb = [
         types.InlineKeyboardButton(
-            text="Cancel",
+            text="❌ Cancel",
             callback_data="undo_input_amount"),
     ]
 
@@ -54,14 +54,11 @@ async def payment_button(uuid, link):
     builder = InlineKeyboardBuilder()
     kb = [
         types.InlineKeyboardButton(
-            text="Pay",
+            text="💳 Pay",
             url=f"{link}",
-            callback_data="pay"),
+            callback_data=f"pay"),
         types.InlineKeyboardButton(
-            text="Done",
-            callback_data=f"done_{uuid}"),
-        types.InlineKeyboardButton(
-            text="Cancel",
+            text="❌ Cancel",
             callback_data=f"cancel_{uuid}"),
     ]
 
@@ -96,7 +93,7 @@ async def get_categories_buttons(mongo):
         count = await check_have_subcategories(mongo, category['_id'])
         if count > 0:
             builder.row(types.InlineKeyboardButton(
-                text=f"{category['name']}",
+                text=f"📂 {category['name']}",
                 callback_data=f"category_{category['_id']}"))
 
     return builder.as_markup()
@@ -109,7 +106,8 @@ async def get_subcategories_buttons(mongo, category_id):
         count = await get_subcategory_count(mongo, subcategory['_id'])
         if count > 0:
             builder.row(types.InlineKeyboardButton(
-                text=f"{subcategory['name']} | {count} items | {subcategory['price']}$",
+                text=f"📌 {subcategory['name']} | {
+                    count} items | 💲{subcategory['price']}$",
                 callback_data=f"subcategory_{subcategory['_id']}"))
 
     return builder.as_markup()
@@ -132,7 +130,8 @@ async def get_groups_buttons(mongo, subcategory_id, group_by):
         products = await get_groupped_count(mongo, subcategory_id, group_by, group['_id'])
         if products != 0:
             kb.append(types.InlineKeyboardButton(
-                text=f"{group['_id']} | {subcategrory.get('price')}$ | {products} items",
+                text=f"📦 {group['_id']} | 💲{subcategrory.get('price')}$ | 📊 {
+                    products} items",
                 callback_data=f"group_{subcategory_id}_{group_by}_{group['_id']}"))
 
     for i in range(0, len(kb), 2):
@@ -147,7 +146,8 @@ async def single_group_buttons(mongo, subcategory_id, subcategory_name):
     if count > 0:
         subcategory = await get_subcategory_info(mongo, subcategory_id)
         builder.row(types.InlineKeyboardButton(
-            text=f"{subcategory_name} | {count} items | {subcategory.get('price')}$",
+            text=f"📦 {subcategory_name} | 📊 {
+                count} items | 💲{subcategory.get('price')}$",
             callback_data=f"item_{subcategory_id}_{subcategory_name}"))
 
     return builder.as_markup()
@@ -187,7 +187,7 @@ async def get_favorites_button(mongo, user_id):
     for favorite in favorites:
         if str(favorite['group_by']) == "none":
             builder.row(types.InlineKeyboardButton(
-                text=f"{favorite['product']}",
+                text=f"❤️ {favorite['product']}",
                 callback_data=f"item_{favorite['subcategory_id']}_{favorite['product']}"))
 
         else:
@@ -204,7 +204,7 @@ async def purchase_buttons(mongo, user_id):
 
     for result in results:
         builder.row(types.InlineKeyboardButton(
-            text=f"{result['product']} | {result['price']}$",
+            text=f"🛍️ {result['product']} | 💲{result['price']}$",
             callback_data=f"purchase_{result['product_id']}"))
 
     return builder.as_markup()
@@ -213,7 +213,6 @@ async def purchase_buttons(mongo, user_id):
 async def get_admin_categories_buttons(mongo):
     categories = await get_categories_list(mongo)
     builder = InlineKeyboardBuilder()
-    kb = []
     for category in categories:
         builder.row(types.InlineKeyboardButton(
             text=f"{category['name']}",

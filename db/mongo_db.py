@@ -455,7 +455,7 @@ async def structure_data(mongo):
                     group_by = subcategory['group_by']
                     groups = {}
                     for product in products:
-                        group_name = product[group_by]
+                        group_name = product[f'{group_by}']
                         if group_name in groups:
                             groups[group_name] += 1
                         else:
